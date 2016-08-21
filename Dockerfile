@@ -13,3 +13,8 @@ RUN apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev \
     && git clone https://github.com/facebook/rocksdb.git \
     && cd rocksdb \
     && make static_lib
+
+COPY Makefile /tmp
+COPY main.cpp /tmp
+RUN cd /tmp \
+    && make
