@@ -1,5 +1,11 @@
 CC = g++
-CFLAGS = -Wall
+CFLAGS = -Wall -std=c++11 -c 
+LFLAGS = -L. -lrocksdb -lstdc++ -lbz2 -lz -lsnappy
 
-all:
-		$(CC) $(CFLAGS) -o grpc-rocksdb main.cpp
+all: grpc-rocksdb 
+
+grpc-rocksdb: main.o
+		$(CC) -o grpc-rocksdb main.o $(LFLAGS)
+
+main.o:
+		$(CC) $(CFLAGS) main.cpp

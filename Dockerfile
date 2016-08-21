@@ -12,9 +12,14 @@ RUN git clone -b $(curl -L http://grpc.io/release) https://github.com/grpc/grpc 
 RUN apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev \
     && git clone https://github.com/facebook/rocksdb.git \
     && cd rocksdb \
-    && make static_lib
+    && make shared_lib \
+    && make install-shared
 
-COPY Makefile /tmp
-COPY main.cpp /tmp
-RUN cd /tmp \
+RUN mkdir -p /build
+COPY Makefile /build
+COPY main.cpp /build
+
+RUN cd /build \
     && make
+
+ENV LD_LIBRARY_PATH usr/lib:/usr/local/lib
