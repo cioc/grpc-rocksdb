@@ -8,4 +8,4 @@ grpc-rocksdb: main.o
 		$(CC) -o grpc-rocksdb main.o $(LFLAGS)
 
 main.o:
-		$(CC) $(CFLAGS) main.cpp
+		$(CC) $(CFLAGS) src/cpp/main.cc

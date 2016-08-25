@@ -20,7 +20,7 @@ RUN apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev \
 
 RUN mkdir -p /build
 COPY Makefile /build
-COPY main.cpp /build
+COPY src /build/src
 
 RUN cd /build \
     && make
