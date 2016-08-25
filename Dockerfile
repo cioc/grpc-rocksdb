@@ -7,6 +7,9 @@ RUN git clone -b $(curl -L http://grpc.io/release) https://github.com/grpc/grpc 
     && cd grpc \
     && git submodule update --init \
     && make \
+    && make install \
+    && cd third_party/protobuf \
+    && make \
     && make install
 
 RUN apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev \
