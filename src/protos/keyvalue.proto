@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package keyvalue;
+
+service keyvalue {
+  rpc CreateTable (CreateTableReq) returns (CreateTableRes) {}
+  rpc DeleteTable (DeleteTableReq) returns (DeleteTableRes) {}
+  rpc Get(GetReq) returns (GetRes) {}
+  rpc Put(PutReq) returns (PutRes) {}
+  rpc Delete(DeleteReq) returns (DeleteRes) {}
+  rpc Range(RangeReq) returns (stream RangeRes) {} 
+}
+
+message Item {
+  bytes key = 1;
+  bytes value = 2;
+}
+
+message CreateTableReq {
+  string name = 1;
+}
+
+message CreateTableRes {
+
+}
+
+message DeleteTableReq {
+  string name = 1;
+}
+
+message DeleteTableRes {
+
+}
+
+message GetReq {
+  bytes key = 1;  
+}
+
+message GetRes {
+  Item item = 1;
+}
+
+message PutReq {
+  Item item = 1;
+  bytes condition = 2;
+}
+
+message PutRes {
+
+}
+
+message DeleteReq {
+  bytes key = 1;
+  bytes condition = 2;
+}
+
+message DeleteRes {
+
+}
+
+message RangeReq {
+  bytes start = 1;
+  bytes end = 2;
+  bool reverse = 3;
+}
+
+message RangeRes {
+  Item item = 1;
+}
