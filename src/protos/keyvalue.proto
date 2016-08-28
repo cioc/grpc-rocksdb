@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package keyvalue;
 
-service keyvalue {
+service KeyValue {
   rpc CreateTable (CreateTableReq) returns (CreateTableRes) {}
   rpc DeleteTable (DeleteTableReq) returns (DeleteTableRes) {}
   rpc Get(GetReq) returns (GetRes) {}
