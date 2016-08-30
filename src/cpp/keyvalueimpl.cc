@@ -1,3 +1,4 @@
+#include "junction/ConcurrentMap_Linear.h"
 #include "keyvalue.grpc.pb.h"
 #include <grpc++/security/server_credentials.h>
 #include <grpc++/server.h>
@@ -60,6 +61,7 @@ public:
 
 private:
     std::shared_timed_mutex mtx;
+    junction::ConcurrentMap_Linear<int, int> tables;
 };
 
 void RunServer() {

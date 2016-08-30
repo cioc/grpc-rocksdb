@@ -18,6 +18,15 @@ RUN apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev \
     && make shared_lib \
     && make install-shared
 
+RUN apt-get install -y cmake \
+    && git clone https://github.com/preshing/junction.git \
+    && git clone https://github.com/preshing/turf.git \
+    && cd junction \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/usr -DJUNCTION_WITH_SAMPLES=OFF .. \
+    && cmake --build . --target install --config RelWithDebInfo  
+
 RUN mkdir -p /build
 COPY Makefile /build
 COPY src /build/src
