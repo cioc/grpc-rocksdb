@@ -5,6 +5,8 @@
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
 #include <iostream>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
 
 using grpc::Server;
@@ -15,46 +17,49 @@ using grpc::Status;
 using keyvalue::KeyValue;
 
 class KeyValueImpl final : public KeyValue::Service {
-    public:
-        explicit KeyValueImpl() {
-             
-        }
-   
-        Status CreateTable(ServerContext* context,
-                           const keyvalue::CreateTableReq* req,
-                           keyvalue::CreateTableRes* res) override {
-            return Status::OK;
-        }
+public:
+    explicit KeyValueImpl() {
+         
+    }
 
-        Status DeleteTable(ServerContext* context,
-                           const keyvalue::DeleteTableReq* req,
-                           keyvalue::DeleteTableRes* res) override {
-            return Status::OK; 
-        }
+    Status CreateTable(ServerContext* context,
+                       const keyvalue::CreateTableReq* req,
+                       keyvalue::CreateTableRes* res) override {
+        return Status::OK;
+    }
 
-        Status Get(ServerContext* context,
-                   const keyvalue::GetReq* req,
-                   keyvalue::GetRes* res) override {
-            return Status::OK;
-        }
+    Status DeleteTable(ServerContext* context,
+                       const keyvalue::DeleteTableReq* req,
+                       keyvalue::DeleteTableRes* res) override {
+        return Status::OK; 
+    }
 
-        Status Put(ServerContext* context,
-                   const keyvalue::PutReq* req,
-                   keyvalue::PutRes* res) override {
-            return Status::OK;
-        }
+    Status Get(ServerContext* context,
+               const keyvalue::GetReq* req,
+               keyvalue::GetRes* res) override {
+        return Status::OK;
+    }
 
-        Status Delete(ServerContext* context,
-                      const keyvalue::DeleteReq* req,
-                      keyvalue::DeleteRes* res) override {
-            return Status::OK;
-        }
-        
-        Status Range(ServerContext* context,
-                     const keyvalue::RangeReq* req,
-                     ServerWriter<keyvalue::RangeRes>* writer) override {
-            return Status::OK;
-        }
+    Status Put(ServerContext* context,
+               const keyvalue::PutReq* req,
+               keyvalue::PutRes* res) override {
+        return Status::OK;
+    }
+
+    Status Delete(ServerContext* context,
+                  const keyvalue::DeleteReq* req,
+                  keyvalue::DeleteRes* res) override {
+        return Status::OK;
+    }
+    
+    Status Range(ServerContext* context,
+                 const keyvalue::RangeReq* req,
+                 ServerWriter<keyvalue::RangeRes>* writer) override {
+        return Status::OK;
+    }
+
+private:
+    std::shared_timed_mutex mtx;
 };
 
 void RunServer() {

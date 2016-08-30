@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -std=c++11 -c 
+CFLAGS = -Wall -std=c++14 -c 
 LDFLAGS = -L. -lgrpc++_unsecure -lgrpc -lgpr -lrocksdb -lstdc++ -lbz2 -lz -lsnappy -lgrpc++_reflection -lprotobuf -lpthread -ldl
 
 all: grpc-rocksdb 
