@@ -1,11 +1,16 @@
-#include "junction/ConcurrentMap_Linear.h"
 #include "keyvalue.grpc.pb.h"
+#include "rocksdb/db.h"
+#include "rocksdb/utilities/transaction.h"
+#include "rocksdb/utilities/transaction_db.h"
+#include <algorithm>
+#include <assert.h>
 #include <grpc++/security/server_credentials.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
 #include <grpc++/server_context.h>
 #include <grpc/grpc.h>
 #include <iostream>
+#include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -16,16 +21,58 @@ using grpc::ServerContext;
 using grpc::ServerWriter;
 using grpc::Status;
 using keyvalue::KeyValue;
+using rocksdb::TransactionDB;
 
 class KeyValueImpl final : public KeyValue::Service {
 public:
     explicit KeyValueImpl() {
+        dbDir = "/tmp";         
+        shuffleSource = "0123456789abcdefghijklmnopqrstuvwxyz";
          
+        // If the tables table doesn't exist, create it.
+        rocksdb::Options options;
+        options.create_if_missing = true;
+        rocksdb::TransactionDBOptions txnOptions;
+        rocksdb::Status status = TransactionDB::Open(options, txnOptions, dbDir + "/tables", &tablesTable);
+        assert(status.ok());
     }
 
     Status CreateTable(ServerContext* context,
                        const keyvalue::CreateTableReq* req,
                        keyvalue::CreateTableRes* res) override {
+        mtx.lock();
+        
+        auto lookup = tableLookup.find(req->name());
+        
+        if (lookup != tableLookup.end()) {
+            //Table already exists
+            mtx.unlock();
+            return Status::OK;
+        }
+        
+        //Table doesn't exist
+
+        //Generate the private name of the table
+        std::string tablePrivateName = shuffleSource;
+        std::random_shuffle(tablePrivateName.begin(), tablePrivateName.end()); 
+        std::string tableName = dbDir + "/" + req->name() + "/" + tablePrivateName;
+
+        //Create the table on disk
+        rocksdb::Options options;
+        options.create_if_missing = true;
+        rocksdb::TransactionDBOptions txnOptions;
+        TransactionDB* newTable;
+        rocksdb::Status status = TransactionDB::Open(options, txnOptions, tableName, &newTable);
+        assert(status.ok());
+        
+        //Insert the table into the tables table
+        rocksdb::DB* db = tablesTable->GetBaseDB();
+        db->Put(writeOptions, req->name(), tableName);   
+        
+        // Install into the tableLookup
+        tableLookup[req->name()] = newTable;
+                 
+        mtx.unlock();
         return Status::OK;
     }
 
@@ -61,7 +108,11 @@ public:
 
 private:
     std::shared_timed_mutex mtx;
-    junction::ConcurrentMap_Linear<int, int> tables;
+    TransactionDB* tablesTable;
+    std::map<std::string, TransactionDB*> tableLookup;
+    std::string dbDir; 
+    std::string shuffleSource;
+    rocksdb::WriteOptions writeOptions;
 };
 
 void RunServer() {

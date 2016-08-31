@@ -1,6 +1,6 @@
 CC = g++
 CFLAGS = -Wall -std=c++14 -c 
-LDFLAGS = -L. -lgrpc++_unsecure -lgrpc -lgpr -lrocksdb -lstdc++ -lbz2 -lz -lsnappy -lgrpc++_reflection -lprotobuf -lpthread -ldl -ljunction -lturf
+LDFLAGS = -L. -lgrpc++_unsecure -lgrpc -lgpr -lrocksdb -lstdc++ -lbz2 -lz -lsnappy -lgrpc++_reflection -lprotobuf -lpthread -ldl
 
 all: grpc-rocksdb 
 
