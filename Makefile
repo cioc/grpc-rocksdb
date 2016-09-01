@@ -17,7 +17,7 @@ protos:
 		protoc -I src/protos --grpc_out=./src/cpp --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` src/protos/keyvalue.proto
 		protoc -I src/protos --cpp_out=./src/cpp src/protos/keyvalue.proto
 
-main.o:
+main.o: protos
 		$(CC) $(CFLAGS) src/cpp/main.cc
 
 keyvalueimpl.o: protos

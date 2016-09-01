@@ -16,8 +16,6 @@
 #include <string>
 #include <unordered_map>
 
-using grpc::Server;
-using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerWriter;
 using grpc::Status;
@@ -241,17 +239,4 @@ Status KeyValueImpl::Range(ServerContext* context,
                            const keyvalue::RangeReq* req,
                            ServerWriter<keyvalue::RangeRes>* writer) {
     return Status::OK;
-}
-
-void RunServer() {
-    std::string server_addr("0.0.0.0:8992");
-    
-    KeyValueImpl service;
-
-    ServerBuilder builder;
-    builder.AddListeningPort(server_addr, grpc::InsecureServerCredentials());
-    builder.RegisterService(&service);
-    std::unique_ptr<Server> server(builder.BuildAndStart());
-    std::cout << "Server listening on " << server_addr << std::endl;
-    server->Wait();   
 }
