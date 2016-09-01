@@ -17,6 +17,8 @@ enum ErrorCode {
   TABLE_DOES_NOT_EXIST = 2; 
   DISK_ERROR = 3;
   INTERNAL_ERROR = 4;
+  KEY_NOT_FOUND = 5;
+  CONDITION_NOT_MET = 6;
 }
 
 message Item {

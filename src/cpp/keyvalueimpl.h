@@ -28,6 +28,8 @@ private:
     static const std::string TABLE_DOES_NOT_EXIST; 
     static const std::string DISK_ERROR;
     static const std::string INTERNAL_ERROR;
+    static const std::string KEY_NOT_FOUND;
+    static const std::string CONDITION_NOT_MET;
     
     std::shared_timed_mutex mtx;
     TransactionDB* tablesTable;
@@ -36,4 +38,5 @@ private:
     std::string shuffleSource;
     rocksdb::WriteOptions writeOptions;
     rocksdb::ReadOptions readOptions;
+    rocksdb::TransactionOptions txnOptions;
 };

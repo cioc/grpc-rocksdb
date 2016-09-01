@@ -28,17 +28,21 @@ const std::string KeyValueImpl::TABLE_ALREADY_EXISTS = "Table already exists";
 const std::string KeyValueImpl::TABLE_DOES_NOT_EXIST = "Table does not exist";
 const std::string KeyValueImpl::DISK_ERROR = "Disk error";
 const std::string KeyValueImpl::INTERNAL_ERROR = "Internal error";
+const std::string KeyValueImpl::KEY_NOT_FOUND = "Key not found";
+const std::string KeyValueImpl::CONDITION_NOT_MET = "Condition not met";
 
 KeyValueImpl::KeyValueImpl() {
     dbDir = "/tmp";         
     shuffleSource = "0123456789abcdefghijklmnopqrstuvwxyz";
+    txnOptions.set_snapshot = true;
      
     // If the tables table doesn't exist, create it.
     rocksdb::Options options;
     options.create_if_missing = true;
-    rocksdb::TransactionDBOptions txnOptions;
-    rocksdb::Status status = TransactionDB::Open(options, txnOptions, dbDir + "/tables", &tablesTable);
+    rocksdb::TransactionDBOptions txnDbOptions;
+    rocksdb::Status status = TransactionDB::Open(options, txnDbOptions, dbDir + "/tables", &tablesTable);
     assert(status.ok());
+
 }
 
 Status KeyValueImpl::CreateTable(ServerContext* context,
@@ -124,7 +128,7 @@ Status KeyValueImpl::Get(ServerContext* context,
     
     if (lookup == tableLookup.end()) {
         //Table doesn't exist
-        mtx.unlock();
+        mtx.unlock_shared();
         res->set_errorcode(keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST);
         return Status(grpc::StatusCode::NOT_FOUND, TABLE_DOES_NOT_EXIST);
     }
@@ -136,10 +140,15 @@ Status KeyValueImpl::Get(ServerContext* context,
     rocksdb::Status readStatus = txnDb->Get(readOptions, req->key(), &value);
 
     if (!readStatus.ok()) {
-        //Table doesn't exist
-        mtx.unlock();
+        mtx.unlock_shared();
+
+        if (readStatus.IsNotFound()) {
+            res->set_errorcode(keyvalue::ErrorCode::KEY_NOT_FOUND);
+            return Status(grpc::StatusCode::NOT_FOUND, KEY_NOT_FOUND);        
+        } 
+
         res->set_errorcode(keyvalue::ErrorCode::INTERNAL_ERROR);
-        return Status(grpc::StatusCode::NOT_FOUND, INTERNAL_ERROR);
+        return Status(grpc::StatusCode::INTERNAL, INTERNAL_ERROR);
     }
     
     keyvalue::Item item;
@@ -156,6 +165,69 @@ Status KeyValueImpl::Get(ServerContext* context,
 Status KeyValueImpl::Put(ServerContext* context,
                          const keyvalue::PutReq* req,
                          keyvalue::PutRes* res) {
+    mtx.lock_shared();
+    
+    auto lookup = tableLookup.find(req->tablename());
+    
+    if (lookup == tableLookup.end()) {
+        //Table doesn't exist
+        mtx.unlock_shared();
+        res->set_errorcode(keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST);
+        return Status(grpc::StatusCode::NOT_FOUND, TABLE_DOES_NOT_EXIST);
+    }
+    
+    //Table exists
+    rocksdb::TransactionDB* txnDb = lookup->second;
+    
+    if (req->condition().size() > 0) {
+        auto txn = txnDb->BeginTransaction(writeOptions);
+        rocksdb::ReadOptions myReadOptions;
+        myReadOptions.snapshot = txn->GetSnapshot();
+        std::string currentValue; 
+        rocksdb::Status readStatus = txn->GetForUpdate(myReadOptions, req->item().key(), &currentValue);
+        
+        if (!readStatus.ok()) {
+            mtx.unlock_shared();
+            delete txn;
+
+            if (readStatus.IsNotFound()) {
+                res->set_errorcode(keyvalue::ErrorCode::KEY_NOT_FOUND);
+                return Status(grpc::StatusCode::NOT_FOUND, KEY_NOT_FOUND);        
+            } 
+            
+            res->set_errorcode(keyvalue::ErrorCode::INTERNAL_ERROR);
+            return Status(grpc::StatusCode::INTERNAL, INTERNAL_ERROR);
+        }
+
+        if (currentValue.compare(req->condition()) != 0) {
+            mtx.unlock_shared();
+            delete txn;
+            res->set_errorcode(keyvalue::ErrorCode::CONDITION_NOT_MET);
+            return Status(grpc::StatusCode::ABORTED, CONDITION_NOT_MET);
+        }
+        
+        txn->Put(req->item().key(), req->item().value());  
+        rocksdb::Status txnStatus = txn->Commit(); 
+        delete txn;
+        
+        if (!txnStatus.ok()) {
+            mtx.unlock_shared();
+            res->set_errorcode(keyvalue::ErrorCode::CONDITION_NOT_MET);
+            return Status(grpc::StatusCode::ABORTED, CONDITION_NOT_MET);
+        }
+    } else {
+        rocksdb::Status putStatus = txnDb->Put(writeOptions, req->item().key(), req->item().value());
+        
+        if (!putStatus.ok()) {
+            mtx.unlock_shared();
+
+            res->set_errorcode(keyvalue::ErrorCode::INTERNAL_ERROR);
+            return Status(grpc::StatusCode::INTERNAL, INTERNAL_ERROR);
+        }
+    }
+    
+    mtx.unlock_shared();
+    res->set_errorcode(keyvalue::ErrorCode::NONE);
     return Status::OK;
 }
 
