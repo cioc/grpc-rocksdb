@@ -11,59 +11,73 @@ service KeyValue {
   rpc Range(RangeReq) returns (stream RangeRes) {} 
 }
 
+enum ErrorCode {
+  NONE = 0;
+  TABLE_ALREADY_EXISTS = 1;
+  TABLE_DOES_NOT_EXIST = 2; 
+  DISK_ERROR = 3;
+  INTERNAL_ERROR = 4;
+}
+
 message Item {
   bytes key = 1;
   bytes value = 2;
 }
 
 message CreateTableReq {
-  string name = 1;
+  string tablename = 1;
 }
 
 message CreateTableRes {
-
+  ErrorCode errorcode = 1;
 }
 
 message DeleteTableReq {
-  string name = 1;
+  string tablename = 1;
 }
 
 message DeleteTableRes {
-
+  ErrorCode errorcode = 1;
 }
 
 message GetReq {
-  bytes key = 1;  
+  string tablename = 1;
+  bytes key = 2;  
 }
 
 message GetRes {
-  Item item = 1;
+  ErrorCode errorcode = 1;
+  Item item = 2;
 }
 
 message PutReq {
-  Item item = 1;
-  bytes condition = 2;
+  string tablename = 1;
+  Item item = 2;
+  bytes condition = 3;
 }
 
 message PutRes {
-
+  ErrorCode errorcode = 1;
 }
 
 message DeleteReq {
-  bytes key = 1;
-  bytes condition = 2;
+  string tablename = 1;
+  bytes key = 2;
+  bytes condition = 3;
 }
 
 message DeleteRes {
-
+  ErrorCode errorcode = 1;
 }
 
 message RangeReq {
-  bytes start = 1;
-  bytes end = 2;
-  bool reverse = 3;
+  string tablename = 1;
+  bytes start = 2;
+  bytes end = 3;
+  bool reverse = 4;
 }
 
 message RangeRes {
-  Item item = 1;
+  ErrorCode errorcode = 1;
+  Item item = 2;
 }
