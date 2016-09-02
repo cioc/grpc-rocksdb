@@ -25,3 +25,4 @@ if __name__ == '__main__':
     put_res = stub.Put(keyvalue_pb2.PutReq(tablename='test-table-1',item=keyvalue_pb2.Item(key='myKey', value='99999'),condition="12345"))
     get_res = stub.Get(keyvalue_pb2.GetReq(tablename='test-table-1',key='myKey'))
     assert get_res.item.value == "99999"
+    delete_table_res = stub.DeleteTable(keyvalue_pb2.DeleteTableReq(tablename='test-table-1'))
