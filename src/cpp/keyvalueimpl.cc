@@ -60,6 +60,8 @@ grpc::StatusCode KeyValueImpl::ToStatusCode(keyvalue::ErrorCode err) {
     switch (err) {
         case keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST:
             return grpc::StatusCode::NOT_FOUND;
+        case keyvalue::ErrorCode::CONDITION_NOT_MET:
+            return grpc::StatusCode::ABORTED;
         case keyvalue::ErrorCode::KEY_NOT_FOUND:
             return grpc::StatusCode::NOT_FOUND;
         case keyvalue::ErrorCode::INTERNAL_ERROR:
@@ -73,6 +75,8 @@ std::string KeyValueImpl::ToErrorMsg(keyvalue::ErrorCode err) {
     switch (err) {
         case keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST:
             return TABLE_DOES_NOT_EXIST;
+        case keyvalue::ErrorCode::CONDITION_NOT_MET:
+            return CONDITION_NOT_MET;
         case keyvalue::ErrorCode::KEY_NOT_FOUND:
             return KEY_NOT_FOUND;
         case keyvalue::ErrorCode::INTERNAL_ERROR:
@@ -227,70 +231,60 @@ HANDLE_ERROR:
 Status KeyValueImpl::Put(ServerContext* context,
                          const keyvalue::PutReq* req,
                          keyvalue::PutRes* res) {
+
+    rocksdb::Status s = rocksdb::Status::OK();
+    keyvalue::ErrorCode err = keyvalue::ErrorCode::NONE;
+    rocksdb::TransactionDB* txnDb;
+    rocksdb::Transaction* txn;
+    rocksdb::ReadOptions myReadOptions;
+    std::string currentValue; 
+    
     mtx.lock_shared();
     
     auto lookup = tableLookup.find(req->tablename());
     
     if (lookup == tableLookup.end()) {
-        //Table doesn't exist
-        mtx.unlock_shared();
-        res->set_errorcode(keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST);
-        return Status(grpc::StatusCode::NOT_FOUND, TABLE_DOES_NOT_EXIST);
+        err = keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST;
+        goto HANDLE_ERROR;
     }
     
-    //Table exists
-    rocksdb::TransactionDB* txnDb = lookup->second;
+    txnDb = lookup->second;
     
-    if (req->condition().size() > 0) {
-        auto txn = txnDb->BeginTransaction(writeOptions);
-        rocksdb::ReadOptions myReadOptions;
+    if (req->condition().size() == 0) {
+        s = txnDb->Put(writeOptions, req->item().key(), req->item().value());
+        if (!s.ok()) { goto HANDLE_ERROR; }
+    } else {
+        txn = txnDb->BeginTransaction(writeOptions);
         myReadOptions.snapshot = txn->GetSnapshot();
-        std::string currentValue; 
-        rocksdb::Status readStatus = txn->GetForUpdate(myReadOptions, req->item().key(), &currentValue);
+        s = txn->GetForUpdate(myReadOptions, req->item().key(), &currentValue);
         
-        if (!readStatus.ok()) {
-            mtx.unlock_shared();
+        if (!s.ok()) {
             delete txn;
-
-            if (readStatus.IsNotFound()) {
-                res->set_errorcode(keyvalue::ErrorCode::KEY_NOT_FOUND);
-                return Status(grpc::StatusCode::NOT_FOUND, KEY_NOT_FOUND);        
-            } 
-            
-            res->set_errorcode(keyvalue::ErrorCode::INTERNAL_ERROR);
-            return Status(grpc::StatusCode::INTERNAL, INTERNAL_ERROR);
+            goto HANDLE_ERROR;
         }
 
         if (currentValue.compare(req->condition()) != 0) {
-            mtx.unlock_shared();
             delete txn;
-            res->set_errorcode(keyvalue::ErrorCode::CONDITION_NOT_MET);
-            return Status(grpc::StatusCode::ABORTED, CONDITION_NOT_MET);
+            err = keyvalue::ErrorCode::CONDITION_NOT_MET;
+            goto HANDLE_ERROR;
         }
         
         txn->Put(req->item().key(), req->item().value());  
-        rocksdb::Status txnStatus = txn->Commit(); 
+        s = txn->Commit(); 
         delete txn;
         
-        if (!txnStatus.ok()) {
-            mtx.unlock_shared();
-            res->set_errorcode(keyvalue::ErrorCode::CONDITION_NOT_MET);
-            return Status(grpc::StatusCode::ABORTED, CONDITION_NOT_MET);
-        }
-    } else {
-        rocksdb::Status putStatus = txnDb->Put(writeOptions, req->item().key(), req->item().value());
-        
-        if (!putStatus.ok()) {
-            mtx.unlock_shared();
-
-            res->set_errorcode(keyvalue::ErrorCode::INTERNAL_ERROR);
-            return Status(grpc::StatusCode::INTERNAL, INTERNAL_ERROR);
+        if (!s.ok()) {
+            err = keyvalue::ErrorCode::CONDITION_NOT_MET;
+            goto HANDLE_ERROR;
         }
     }
-    
+
+HANDLE_ERROR:
     mtx.unlock_shared();
-    res->set_errorcode(keyvalue::ErrorCode::NONE);
-    return Status::OK;
+
+    ErrorTranslation trans = TranslateError(err, s);
+    res->set_errorcode(trans.code);
+    return trans.status;
 }
 
 Status KeyValueImpl::Delete(ServerContext* context,
