@@ -30,6 +30,7 @@ private:
     static const std::string INTERNAL_ERROR;
     static const std::string KEY_NOT_FOUND;
     static const std::string CONDITION_NOT_MET;
+    static const std::string NO_ERROR;
     
     std::shared_timed_mutex mtx;
     TransactionDB* tablesTable;
@@ -39,4 +40,7 @@ private:
     rocksdb::WriteOptions writeOptions;
     rocksdb::ReadOptions readOptions;
     rocksdb::TransactionOptions txnOptions;
+    
+    grpc::StatusCode ToStatusCode(keyvalue::ErrorCode err); 
+    std::string ToErrorMsg(keyvalue::ErrorCode err);
 };
