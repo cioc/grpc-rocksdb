@@ -33,6 +33,29 @@ const std::string KeyValueImpl::INTERNAL_ERROR = "Internal error";
 const std::string KeyValueImpl::KEY_NOT_FOUND = "Key not found";
 const std::string KeyValueImpl::CONDITION_NOT_MET = "Condition not met";
 
+ErrorTranslation::ErrorTranslation(grpc::Status s, keyvalue::ErrorCode c) {
+    status = s;
+    code = c;
+}
+
+ErrorTranslation KeyValueImpl::TranslateError(keyvalue::ErrorCode code, rocksdb::Status status) {
+    if (code == keyvalue::ErrorCode::NONE && status.ok()) {
+        return ErrorTranslation(Status::OK, keyvalue::ErrorCode::NONE); 
+    }
+
+    if (code != keyvalue::ErrorCode::NONE) {
+        return ErrorTranslation(Status(ToStatusCode(code), ToErrorMsg(code)), code);
+    }
+
+    if (status.IsNotFound()) {
+        code = keyvalue::ErrorCode::KEY_NOT_FOUND;
+    } else {
+        code = keyvalue::ErrorCode::INTERNAL_ERROR;   
+    }
+    
+    return ErrorTranslation(Status(ToStatusCode(code), ToErrorMsg(code) + " " + status.ToString()), code);
+}
+
 grpc::StatusCode KeyValueImpl::ToStatusCode(keyvalue::ErrorCode err) {
     switch (err) {
         case keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST:
@@ -195,24 +218,10 @@ Status KeyValueImpl::Get(ServerContext* context,
     res->mutable_item()->CopyFrom(item);
 HANDLE_ERROR:
     mtx.unlock_shared();
-    
-    if (err == keyvalue::ErrorCode::NONE && s.ok()) {
-        res->set_errorcode(keyvalue::ErrorCode::NONE);
-        return Status::OK;
-    }
 
-    if (err != keyvalue::ErrorCode::NONE) {
-        res->set_errorcode(err);
-        return Status(ToStatusCode(err), ToErrorMsg(err));
-    }
-
-    if (s.IsNotFound()) {
-        err = keyvalue::ErrorCode::KEY_NOT_FOUND;
-    } else {
-        err = keyvalue::ErrorCode::INTERNAL_ERROR;   
-    }
-    
-    return Status(ToStatusCode(err), ToErrorMsg(err) + " " + s.ToString());
+    ErrorTranslation trans = TranslateError(err, s);
+    res->set_errorcode(trans.code);
+    return trans.status;
 }
 
 Status KeyValueImpl::Put(ServerContext* context,

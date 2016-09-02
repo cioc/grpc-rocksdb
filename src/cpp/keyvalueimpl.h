@@ -13,6 +13,13 @@ using grpc::Status;
 using keyvalue::KeyValue;
 using rocksdb::TransactionDB;
 
+class ErrorTranslation {
+public:
+    grpc::Status status;
+    keyvalue::ErrorCode code;
+    ErrorTranslation(grpc::Status, keyvalue::ErrorCode);
+};
+
 class KeyValueImpl final : public KeyValue::Service {
 public:
     explicit KeyValueImpl();
@@ -43,4 +50,5 @@ private:
     
     grpc::StatusCode ToStatusCode(keyvalue::ErrorCode err); 
     std::string ToErrorMsg(keyvalue::ErrorCode err);
+    ErrorTranslation TranslateError(keyvalue::ErrorCode code, rocksdb::Status status);
 };
