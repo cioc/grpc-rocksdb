@@ -16,7 +16,7 @@ docker rm grpcrocksdb
 docker rm grpcrocksdb-test
 
 #Run the tests
-docker run -d --expose=8992 -p 8992:8992 --name=grpcrocksdb grpc-rocksdb/latest ./build/grpc-rocksdb
+docker run -d --expose=8992 -p 8992:8992 -v /tmp --name=grpcrocksdb grpc-rocksdb/latest ./build/grpc-rocksdb
 docker run -a stdin -a stdout -a stderr -i -t --sig-proxy=true --link grpcrocksdb --name=grpcrocksdb-test grpc-rocksdb/test ./build/test.py
 
 #Cleanup

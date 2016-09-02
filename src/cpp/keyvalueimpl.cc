@@ -5,6 +5,7 @@
 #include "rocksdb/utilities/transaction_db.h"
 #include <algorithm>
 #include <assert.h>
+#include <dirent.h>
 #include <grpc++/security/server_credentials.h>
 #include <grpc++/server.h>
 #include <grpc++/server_builder.h>
@@ -14,6 +15,8 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unordered_map>
 
 using grpc::ServerContext;
@@ -61,7 +64,25 @@ Status KeyValueImpl::CreateTable(ServerContext* context,
     //Generate the private name of the table
     std::string tablePrivateName = shuffleSource;
     std::random_shuffle(tablePrivateName.begin(), tablePrivateName.end()); 
-    std::string tableName = dbDir + "/" + req->tablename() + "/" + tablePrivateName;
+    std::string topLevelName = dbDir + "/" + req->tablename();
+    std::string tableName = topLevelName + "/" + tablePrivateName;
+    
+    //Check if top level exists, create if necessary
+    DIR* dir = opendir(topLevelName.c_str());
+    if (dir) {
+        closedir(dir);
+    } else if (ENOENT == errno){
+        const int dir_err = mkdir(topLevelName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if (dir_err == -1) {
+            mtx.unlock();
+            res->set_errorcode(keyvalue::ErrorCode::DISK_ERROR); 
+            return Status(grpc::StatusCode::RESOURCE_EXHAUSTED, DISK_ERROR + " failed to create top level directory"); 
+        }
+    } else {
+        mtx.unlock();
+        res->set_errorcode(keyvalue::ErrorCode::DISK_ERROR); 
+        return Status(grpc::StatusCode::RESOURCE_EXHAUSTED, DISK_ERROR + " failed to check for top level directory"); 
+    }
 
     //Create the table on disk
     rocksdb::Options options;
@@ -74,7 +95,7 @@ Status KeyValueImpl::CreateTable(ServerContext* context,
         //Failed to create table on disk
         mtx.unlock();
         res->set_errorcode(keyvalue::ErrorCode::DISK_ERROR); 
-        return Status(grpc::StatusCode::RESOURCE_EXHAUSTED, DISK_ERROR); 
+        return Status(grpc::StatusCode::RESOURCE_EXHAUSTED, DISK_ERROR + " " + status.ToString()); 
     }
     
     //Insert the table into the tables table
