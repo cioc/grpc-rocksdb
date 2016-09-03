@@ -1,0 +1,3 @@
+[submodule "src/protos"]
+	path = src/protos
+	url = https://github.com/cioc/grpc-rocksdb-proto.git
