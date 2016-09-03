@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 function kill_container {
   RUNNING_TEST=$(docker inspect -f {{.State.Running}} $1)
   if $RUNNING_TEST !== "false"
