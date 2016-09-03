@@ -33,7 +33,7 @@ public:
     Status Get(ServerContext* context, const keyvalue::GetReq* req, keyvalue::GetRes* res) override;
     Status Put(ServerContext* context, const keyvalue::PutReq* req, keyvalue::PutRes* res) override;
     Status Delete(ServerContext* context, const keyvalue::DeleteReq* req, keyvalue::DeleteRes* res) override;
-    Status Range(ServerContext* context, const keyvalue::RangeReq* req, ServerWriter<keyvalue::RangeRes>* writer) override;
+    Status Range(ServerContext* context, const keyvalue::RangeReq* req, ServerWriter<keyvalue::Item>* writer) override;
 
 private:
     static const std::string TABLE_ALREADY_EXISTS; 

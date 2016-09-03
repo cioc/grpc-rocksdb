@@ -8,7 +8,7 @@ service KeyValue {
   rpc Get(GetReq) returns (GetRes) {}
   rpc Put(PutReq) returns (PutRes) {}
   rpc Delete(DeleteReq) returns (DeleteRes) {}
-  rpc Range(RangeReq) returns (stream RangeRes) {} 
+  rpc Range(RangeReq) returns (stream Item) {} 
 }
 
 enum ErrorCode {
@@ -77,9 +77,4 @@ message RangeReq {
   bytes start = 2;
   bytes end = 3;
   bool reverse = 4;
-}
-
-message RangeRes {
-  ErrorCode errorcode = 1;
-  Item item = 2;
 }

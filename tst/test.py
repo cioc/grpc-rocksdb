@@ -48,4 +48,37 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception:
         pass
+    put_res = stub.Put(keyvalue_pb2.PutReq(tablename='test-table-1',item=keyvalue_pb2.Item(key='key1', value='1')))
+    put_res = stub.Put(keyvalue_pb2.PutReq(tablename='test-table-1',item=keyvalue_pb2.Item(key='key2', value='2')))
+    put_res = stub.Put(keyvalue_pb2.PutReq(tablename='test-table-1',item=keyvalue_pb2.Item(key='key3', value='3')))
+    put_res = stub.Put(keyvalue_pb2.PutReq(tablename='test-table-1',item=keyvalue_pb2.Item(key='key4', value='4')))
+    put_res = stub.Put(keyvalue_pb2.PutReq(tablename='test-table-1',item=keyvalue_pb2.Item(key='key5', value='5')))
+    items = stub.Range(keyvalue_pb2.RangeReq(tablename='test-table-1'))
+    counter = 1
+    for i in items:
+        assert i.key == ('key' + str(counter))
+        assert i.value == str(counter)
+        counter += 1
+    assert counter == 6
+    items = stub.Range(keyvalue_pb2.RangeReq(tablename='test-table-1',start='key2'))
+    counter = 2
+    for i in items:
+        assert i.key == ('key' + str(counter))
+        assert i.value == str(counter)
+        counter += 1
+    assert counter == 6
+    items = stub.Range(keyvalue_pb2.RangeReq(tablename='test-table-1',end='key3'))
+    counter = 1
+    for i in items:
+        assert i.key == ('key' + str(counter))
+        assert i.value == str(counter)
+        counter += 1
+    assert counter == 3
+    items = stub.Range(keyvalue_pb2.RangeReq(tablename='test-table-1',start='key2',end='key5'))
+    counter = 2
+    for i in items:
+        assert i.key == ('key' + str(counter))
+        assert i.value == str(counter)
+        counter += 1
+    assert counter == 5
     delete_table_res = stub.DeleteTable(keyvalue_pb2.DeleteTableReq(tablename='test-table-1'))

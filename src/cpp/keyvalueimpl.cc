@@ -332,6 +332,55 @@ Status KeyValueImpl::Delete(ServerContext* context,
 
 Status KeyValueImpl::Range(ServerContext* context,
                            const keyvalue::RangeReq* req,
-                           ServerWriter<keyvalue::RangeRes>* writer) {
-    return Status::OK;
+                           ServerWriter<keyvalue::Item>* writer) {
+    rocksdb::Status s = rocksdb::Status::OK();
+    keyvalue::ErrorCode err = keyvalue::ErrorCode::NONE;
+    rocksdb::TransactionDB* txnDb;
+    rocksdb::ReadOptions options;
+    rocksdb::Iterator* iter;
+    keyvalue::Item item;
+
+    mtx.lock_shared();
+
+    auto lookup = tableLookup.find(req->tablename());
+
+    if (lookup == tableLookup.end()) {
+        err = keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST;
+        goto HANDLE_ERROR;
+    }
+    
+    txnDb = lookup->second;
+    options.snapshot = txnDb->GetSnapshot();
+    
+    
+    iter = txnDb->NewIterator(options);
+    
+    if (req->start().size() > 0) {
+        iter->Seek(req->start());
+    } else {
+        iter->SeekToFirst();
+    }
+    
+    if (req->end().size() > 0) {
+        for (; iter->Valid() && iter->key().ToString() < req->end(); iter->Next()) {
+            item.set_key(iter->key().ToString());
+            item.set_value(iter->value().ToString());
+            writer->Write(item);
+        }
+    } else {
+        for (; iter->Valid(); iter->Next()) {
+            item.set_key(iter->key().ToString());
+            item.set_value(iter->value().ToString());
+            writer->Write(item);
+        }
+    }
+     
+    delete iter; 
+    txnDb->ReleaseSnapshot(options.snapshot);  
+
+HANDLE_ERROR:
+    mtx.unlock_shared();
+
+    ErrorTranslation trans = TranslateError(err, s);
+    return trans.status;
 }
