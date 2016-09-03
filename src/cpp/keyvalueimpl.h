@@ -27,7 +27,7 @@ public:
 
 class KeyValueImpl final : public KeyValue::Service {
 public:
-    explicit KeyValueImpl();
+    explicit KeyValueImpl(std::string storagePath);
     Status CreateTable(ServerContext* context, const keyvalue::CreateTableReq* req, keyvalue::CreateTableRes* res) override;
     Status DeleteTable(ServerContext* context, const keyvalue::DeleteTableReq* req, keyvalue::DeleteTableRes* res) override;
     Status Get(ServerContext* context, const keyvalue::GetReq* req, keyvalue::GetRes* res) override;

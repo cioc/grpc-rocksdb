@@ -38,7 +38,7 @@ function run_test {
     echo "TEST START"
     echo "=========="
     echo ""
-    docker run -d --expose=8992 -p 8992:8992 -v /tmp --name=grpcrocksdb grpc-rocksdb/latest ./build/grpc-rocksdb
+    docker run -d --expose=8992 -p 8992:8992 -v /tmp --name=grpcrocksdb grpc-rocksdb/latest ./build/grpc-rocksdb 0.0.0.0:8992 /tmp
     docker run -a stdin -a stdout -a stderr -i -t --sig-proxy=true --link grpcrocksdb --name=grpcrocksdb-test grpc-rocksdb/test ./build/test.py
     echo "TEST END"
     echo "========"

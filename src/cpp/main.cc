@@ -9,9 +9,13 @@ using grpc::Server;
 using grpc::ServerBuilder;
 
 int main(int argc, char** argv) {
-    std::string server_addr("0.0.0.0:8992");
+    if (argc != 3) {
+        std::cout << "Incorrect arguments supplied: grpc-rocksdb <addr> <storagePath>";
+        return 1;
+    }
+    std::string server_addr(argv[1]);
     
-    KeyValueImpl service;
+    KeyValueImpl service(argv[2]);
 
     ServerBuilder builder;
     builder.AddListeningPort(server_addr, grpc::InsecureServerCredentials());

@@ -162,8 +162,8 @@ std::string KeyValueImpl::ToErrorMsg(keyvalue::ErrorCode err) {
     }
 }
 
-KeyValueImpl::KeyValueImpl() {
-    dbDir = "/tmp";         
+KeyValueImpl::KeyValueImpl(std::string storagePath) {
+    dbDir = storagePath;         
     shuffleSource = "0123456789abcdefghijklmnopqrstuvwxyz";
     txnOptions.set_snapshot = true;
      
