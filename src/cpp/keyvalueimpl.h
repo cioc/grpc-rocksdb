@@ -13,6 +13,11 @@ using grpc::Status;
 using keyvalue::KeyValue;
 using rocksdb::TransactionDB;
 
+enum class UpdateType {
+  Put,
+  Delete
+};
+
 class ErrorTranslation {
 public:
     grpc::Status status;
@@ -50,5 +55,11 @@ private:
     
     grpc::StatusCode ToStatusCode(keyvalue::ErrorCode err); 
     std::string ToErrorMsg(keyvalue::ErrorCode err);
+    ErrorTranslation UpdateInternal(UpdateType updateType,
+                                    std::string tableName,
+                                    std::string key,
+                                    std::string value,
+                                    bool hasCondition,
+                                    std::string condition);
     ErrorTranslation TranslateError(keyvalue::ErrorCode code, rocksdb::Status status);
 };

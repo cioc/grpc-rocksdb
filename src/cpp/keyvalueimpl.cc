@@ -5,6 +5,7 @@
 #include "rocksdb/utilities/transaction_db.h"
 #include <algorithm>
 #include <assert.h>
+#include <cstddef>
 #include <dirent.h>
 #include <grpc++/security/server_credentials.h>
 #include <grpc++/server.h>
@@ -32,6 +33,81 @@ const std::string KeyValueImpl::DISK_ERROR = "Disk error";
 const std::string KeyValueImpl::INTERNAL_ERROR = "Internal error";
 const std::string KeyValueImpl::KEY_NOT_FOUND = "Key not found";
 const std::string KeyValueImpl::CONDITION_NOT_MET = "Condition not met";
+
+ErrorTranslation KeyValueImpl::UpdateInternal(UpdateType updateType,
+                                              std::string tableName,
+                                              std::string key,
+                                              std::string value,
+                                              bool hasCondition,
+                                              std::string condition) {
+    rocksdb::Status s = rocksdb::Status::OK();
+    keyvalue::ErrorCode err = keyvalue::ErrorCode::NONE;
+    rocksdb::TransactionDB* txnDb;
+    rocksdb::Transaction* txn;
+    rocksdb::ReadOptions myReadOptions;
+    std::string currentValue; 
+    
+    mtx.lock_shared();
+    
+    auto lookup = tableLookup.find(tableName);
+    
+    if (lookup == tableLookup.end()) {
+        err = keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST;
+        goto HANDLE_ERROR;
+    }
+    
+    txnDb = lookup->second;
+    
+    if (hasCondition) {
+        txn = txnDb->BeginTransaction(writeOptions);
+        myReadOptions.snapshot = txn->GetSnapshot();
+        s = txn->GetForUpdate(myReadOptions, key, &currentValue);
+        
+        if (!s.ok()) {
+            delete txn;
+            goto HANDLE_ERROR;
+        }
+
+        if (currentValue.compare(condition) != 0) {
+            delete txn;
+            err = keyvalue::ErrorCode::CONDITION_NOT_MET;
+            goto HANDLE_ERROR;
+        }
+        
+        switch (updateType) {
+            case UpdateType::Put:
+                txn->Put(key, value);  
+            break;
+            case UpdateType::Delete:
+                txn->Delete(key);  
+            break;
+        }
+         
+        s = txn->Commit(); 
+        delete txn;
+        
+        if (!s.ok()) {
+            err = keyvalue::ErrorCode::CONDITION_NOT_MET;
+            goto HANDLE_ERROR;
+        }
+    } else {
+        switch (updateType) {
+            case UpdateType::Put: 
+                s = txnDb->Put(writeOptions, key, value);
+            break;
+            case UpdateType::Delete:
+                s = txnDb->Delete(writeOptions, key);
+            break;
+        }
+        if (!s.ok()) { goto HANDLE_ERROR; }
+    }
+
+HANDLE_ERROR:
+    mtx.unlock_shared();
+    
+    ErrorTranslation trans = TranslateError(err, s);
+    return trans;
+}
 
 ErrorTranslation::ErrorTranslation(grpc::Status s, keyvalue::ErrorCode c) {
     status = s;
@@ -231,58 +307,12 @@ HANDLE_ERROR:
 Status KeyValueImpl::Put(ServerContext* context,
                          const keyvalue::PutReq* req,
                          keyvalue::PutRes* res) {
-
-    rocksdb::Status s = rocksdb::Status::OK();
-    keyvalue::ErrorCode err = keyvalue::ErrorCode::NONE;
-    rocksdb::TransactionDB* txnDb;
-    rocksdb::Transaction* txn;
-    rocksdb::ReadOptions myReadOptions;
-    std::string currentValue; 
-    
-    mtx.lock_shared();
-    
-    auto lookup = tableLookup.find(req->tablename());
-    
-    if (lookup == tableLookup.end()) {
-        err = keyvalue::ErrorCode::TABLE_DOES_NOT_EXIST;
-        goto HANDLE_ERROR;
-    }
-    
-    txnDb = lookup->second;
-    
-    if (req->condition().size() == 0) {
-        s = txnDb->Put(writeOptions, req->item().key(), req->item().value());
-        if (!s.ok()) { goto HANDLE_ERROR; }
-    } else {
-        txn = txnDb->BeginTransaction(writeOptions);
-        myReadOptions.snapshot = txn->GetSnapshot();
-        s = txn->GetForUpdate(myReadOptions, req->item().key(), &currentValue);
-        
-        if (!s.ok()) {
-            delete txn;
-            goto HANDLE_ERROR;
-        }
-
-        if (currentValue.compare(req->condition()) != 0) {
-            delete txn;
-            err = keyvalue::ErrorCode::CONDITION_NOT_MET;
-            goto HANDLE_ERROR;
-        }
-        
-        txn->Put(req->item().key(), req->item().value());  
-        s = txn->Commit(); 
-        delete txn;
-        
-        if (!s.ok()) {
-            err = keyvalue::ErrorCode::CONDITION_NOT_MET;
-            goto HANDLE_ERROR;
-        }
-    }
-
-HANDLE_ERROR:
-    mtx.unlock_shared();
-
-    ErrorTranslation trans = TranslateError(err, s);
+    ErrorTranslation trans = UpdateInternal(UpdateType::Put,
+                                            req->tablename(),
+                                            req->item().key(),
+                                            req->item().value(),
+                                            req->condition().size() != 0,
+                                            req->condition());
     res->set_errorcode(trans.code);
     return trans.status;
 }
@@ -290,7 +320,14 @@ HANDLE_ERROR:
 Status KeyValueImpl::Delete(ServerContext* context,
                             const keyvalue::DeleteReq* req,
                             keyvalue::DeleteRes* res) {
-    return Status::OK;
+    ErrorTranslation trans = UpdateInternal(UpdateType::Delete,
+                                            req->tablename(),
+                                            req->key(),
+                                            "",
+                                            req->condition().size() != 0,
+                                            req->condition());
+    res->set_errorcode(trans.code);
+    return trans.status;
 }
 
 Status KeyValueImpl::Range(ServerContext* context,
