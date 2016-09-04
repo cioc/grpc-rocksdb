@@ -1,0 +1,28 @@
+{
+  "apiVersion" : "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name" : "grpcrocksdb",
+    "labels": {
+      "app" : "grpcrocksdb"
+    }
+  },
+  "spec" : {
+    "containers" : [{
+      "name" : "grpcrocksdb",
+      "image" : "cioc/grpc-rocksdb:latest",
+      "command" : ["./build/grpc-rocksdb", "0.0.0.0:8992", "/storage"],
+      "ports" : [{
+        "containerPort" : 8992  
+      }],
+      "volumeMounts" : [{
+        "name" : "storage",
+        "mountPath" : "/storage"
+      }]
+    }],
+    "volumes" : [{
+      "name" : "storage",
+      "emptyDir" : {}
+    }]
+  }
+}

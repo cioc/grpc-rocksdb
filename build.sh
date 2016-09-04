@@ -30,12 +30,23 @@ function run_server {
 function run_test {
     #Run the tests
     echo "TEST START"
-    echo "=========="
-    echo ""
-    docker run -a stdin -a stdout -a stderr -i -t --sig-proxy=true --link grpcrocksdb --name=grpcrocksdb-test grpc-rocksdb/test ./build/test.py
+    
+    if [ -z "$1" ];
+    then
+        docker run -a stdin -a stdout -a stderr -i -t --sig-proxy=true --link grpcrocksdb --name=grpcrocksdb-test grpc-rocksdb/test ./build/test.py
+    else
+        docker run -a stdin -a stdout -a stderr -i -t --sig-proxy=true --name=grpcrocksdb-test grpc-rocksdb/test ./build/test.py $1
+    fi 
+    
     echo "TEST END"
-    echo "========"
-    echo ""
+}
+
+function clean {
+    #Cleanup anything that may have been left running
+    kill_container grpcrocksdb || true
+    kill_container grpcrocksdb-test || true
+    docker rm grpcrocksdb || true
+    docker rm grpcrocksdb-test || true
 }
 
 if [ $# -eq 0 ];
@@ -43,11 +54,7 @@ then
     run_build
     run_build_test
     
-    #Cleanup anything that may have been left running
-    kill_container grpcrocksdb || true
-    kill_container grpcrocksdb-test || true
-    docker rm grpcrocksdb || true
-    docker rm grpcrocksdb-test || true
+    clean
     
     run_server
     run_test
@@ -66,7 +73,7 @@ fi
 
 if [ $1 == "test" ];
 then
-    run_test
+    run_test $2
     exit
 fi
 
@@ -78,4 +85,9 @@ fi
 if [ $1 == "build-test" ];
 then
     run_build_test
+fi
+
+if [ $1 == "clean" ];
+then
+    clean
 fi

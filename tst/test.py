@@ -6,7 +6,11 @@ import os
 import sys
 
 if __name__ == '__main__':
-    conn_str = os.environ['GRPCROCKSDB_PORT'].split("/")[2]
+    conn_str = ""
+    if len(sys.argv) == 2:
+        conn_str = sys.argv[1] 
+    else:
+        conn_str = os.environ['GRPCROCKSDB_PORT'].split("/")[2]
     print "Connecting on: " + conn_str
     channel = grpc.insecure_channel(conn_str)
     stub = keyvalue_pb2.KeyValueStub(channel)
