@@ -1,7 +1,11 @@
 sudo: required
-language: cpp
+
 services:
-- docker
-install: true
+  - docker
+
+before_install:
+  - bash build.sh build
+  - bash build.sh run
+
 script:
-- bash build.sh
+  - bash build.sh test
