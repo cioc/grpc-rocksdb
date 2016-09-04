@@ -5,6 +5,7 @@ services:
 
 before_install:
   - bash build.sh build
+  - bash build.sh build-test
   - bash build.sh run
 
 script:
