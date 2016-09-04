@@ -9,7 +9,7 @@ The service definition can be found here: https://github.com/cioc/grpc-rocksdb-p
 
 The container is on docker hub: https://hub.docker.com/r/cioc/grpc-rocksdb/  This image is the server docker file.  There is another docker file within the tst directory.  It's a python-based test to run against the server container.
 
-Build &amp; Test
+build &amp; test
 ================
 
 To build the containers and run the tests:
